@@ -43,17 +43,14 @@ export function addFacts(
   for (const input of inputs) {
     const fact = factInputSchema.parse(input);
     const source = allowedSources.find((s) => s.id === fact.sourceId);
-    if (
-      !source ||
-      source.claimId !== run.claimId ||
-      source.fields[fact.key] !== fact.value ||
-      !source.text.includes(fact.quote) ||
-      !fact.quote.includes(fact.value)
-    ) {
-      throw new Error(
-        "Extracted fact does not match its authoritative tool receipt",
-      );
-    }
+    const mismatch = !source ? "source ID is not in the authoritative tool receipts"
+      : source.claimId !== run.claimId ? "the authoritative tool receipt belongs to another claim"
+      : !Object.hasOwn(source.fields, fact.key) ? "field is absent from the authoritative tool receipt"
+      : source.fields[fact.key] !== fact.value ? "value differs from the authoritative tool receipt"
+      : !source.text.includes(fact.quote) ? "quoted text is absent from the authoritative tool receipt"
+      : !fact.quote.includes(fact.value) ? "quote does not include the field value from the authoritative tool receipt"
+      : undefined;
+    if (mismatch) throw new Error(`Source check failed for ${fact.key}: ${mismatch}`);
     if (pending.some((f) => f.key === fact.key && f.sourceId === fact.sourceId))
       throw new Error("Extraction duplicated a source field");
     pending.push(fact);

@@ -13,7 +13,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { useExecution, useWorkspace } from "../lib/workspace";
 import { needsReview } from "../lib/format";
 import { Loading } from "./ui";
@@ -38,7 +38,7 @@ export function Layout() {
   const reviews = runs.data?.filter(needsReview).length ?? 0;
   const current = navigation.find((item) =>
     item.to === "/"
-      ? location.pathname === "/"
+      ? guided
       : location.pathname.startsWith(item.to),
   );
   useEffect(() => {
@@ -54,16 +54,6 @@ export function Layout() {
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [menuOpen]);
-  if (guided) return <div className="demo-shell">
-    <a className="skip-link" href="#main-content">Skip to content</a>
-    <header className="demo-header">
-      <Link to="/" className="demo-brand"><Activity size={22} /><strong>JEV + OpenAI</strong><span>RCM proof of concept</span></Link>
-      <Link to="/lab" className="demo-advanced-link">Advanced workspace <ArrowRight size={15} /></Link>
-    </header>
-    {execution.error && <div className="global-error" role="alert"><span>{execution.error}</span><button className="icon-button" aria-label="Dismiss error" onClick={execution.dismissError}><X size={17} /></button></div>}
-    {execution.activeId && <div className="demo-active-notice" role="status">{execution.activeIds.length > 1 ? `${execution.activeIds.length} investigations are queued or running.` : "An investigation is running."} <Link to={`/demo/${execution.activeId}`}>View or pause it</Link>.</div>}
-    <main id="main-content" className="demo-page"><Suspense fallback={<Loading />}><Outlet /></Suspense></main>
-  </div>;
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -88,13 +78,11 @@ export function Layout() {
         <span className="nav-label">WORKSPACE</span>
         <nav aria-label="Main navigation">
           {navigation.map(({ to, label, icon: Icon }) => (
-            <NavLink
+            <Link
               key={to}
               to={to}
-              end={to === "/"}
-              className={({ isActive }) =>
-                `nav-link ${isActive ? "active" : ""}`
-              }
+              aria-current={current?.to === to ? "page" : undefined}
+              className={`nav-link ${current?.to === to ? "active" : ""}`}
             >
               <Icon size={18} />
               <span>{label}</span>
@@ -106,7 +94,7 @@ export function Layout() {
                   {reviews}
                 </span>
               )}
-            </NavLink>
+            </Link>
           ))}
         </nav>
         <div className="sidebar-note">
@@ -126,8 +114,13 @@ export function Layout() {
           </div>
         </div>
       </aside>
-      <div className="main-shell">
-        <header className="topbar">
+      <div className={`main-shell${guided ? " demo-shell" : ""}`}>
+        {guided ? (
+          <header className="demo-header">
+            <Link to="/" className="demo-brand"><Activity size={22} /><strong>JEV + OpenAI</strong><span>RCM proof of concept</span></Link>
+            <Link to="/lab" className="demo-advanced-link">Advanced workspace <ArrowRight size={15} /></Link>
+          </header>
+        ) : <header className="topbar">
           <div className="breadcrumb">
             <button
               className="icon-button mobile-menu"
@@ -155,8 +148,13 @@ export function Layout() {
                   : "Connecting"}
             </span>
           </div>
-        </header>
-        {execution.activeId && (
+        </header>}
+        {execution.activeId && (guided ? (
+          <div className="demo-active-notice" role="status">
+            {execution.activeIds.length > 1 ? `${execution.activeIds.length} investigations are queued or running.` : "An investigation is running."}{" "}
+            <Link to={`/demo/${execution.activeId}`}>View or pause it</Link>.
+          </div>
+        ) : (
           <div className="execution-banner" role="status">
             <span className="pulse-dot" />
             <span>
@@ -168,7 +166,7 @@ export function Layout() {
               View investigation <ArrowRight size={14} />
             </Link>
           </div>
-        )}
+        ))}
         {execution.error && (
           <div className="global-error" role="alert">
             <span>{execution.error}</span>
@@ -181,15 +179,15 @@ export function Layout() {
             </button>
           </div>
         )}
-        <main id="main-content" className="page">
+        <main id="main-content" className={guided ? "demo-page" : "page"}>
           <Suspense fallback={<Loading />}>
             <Outlet />
           </Suspense>
         </main>
-        <footer className="app-footer">
+        {!guided && <footer className="app-footer">
           <span>JEV Investigation Lab</span>
           <span>Evidence behind every action.</span>
-        </footer>
+        </footer>}
       </div>
     </div>
   );

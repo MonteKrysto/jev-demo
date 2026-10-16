@@ -1,6 +1,6 @@
 # JEV RCM Investigation Lab
 
-A desktop React application and durable investigation backend for a synthetic revenue-cycle workflow. JEV selects the next investigative capability and proposed Task Action. OpenAI selects tools within that assignment, extracts source-bound findings, and orders citations for a completion note. Application rules enforce evidence requirements, budgets, claim access, and reviewer approval.
+A desktop React application and durable investigation backend for a synthetic revenue-cycle workflow. JEV selects the next investigative capability and proposed Task Action. OpenAI selects tools within that assignment, references the returned fields, and orders citations for a completion note. The application binds those references to exact tool values and citations, and enforces evidence requirements, budgets, claim access, and reviewer approval.
 
 ## Demonstrating the POC
 
@@ -25,6 +25,8 @@ make bootstrap
 ```
 
 Open http://localhost:3001 (or the `APP_PORT` saved in `.env`). Bootstrap creates `.env` from `.env.example` only when missing, builds the development image, applies migrations, seeds 528 synthetic cases, and waits for PostgreSQL, API, and worker health checks. No API keys are needed for fixture mode. Set keys in `.env` to enable live modes; keys stay on the server.
+
+A host-side `pnpm install` or `npm install` is not needed for Docker bootstrap. The Docker image installs its own Linux dependencies with `npm ci` from `package-lock.json`; host `node_modules` is excluded from the image and is not mounted into the running containers.
 
 For everyday Docker use:
 
@@ -88,6 +90,12 @@ The OpenAI integration is an application-owned, bounded agent runtime using the 
 - **Reproducible sources:** Cases and source payloads live in PostgreSQL. Every new run snapshots its source data. Invocation receipts are cached by run, evidence position, tool, and arguments; retrying extraction reuses the observation. This is idempotency for the synthetic tool environment, not an exactly-once guarantee for future external integrations.
 - **Adaptive decisions:** Multiple investigation capabilities are eligible after the initial claim lookup. Required checks must be collected before an operational action. Conflicting observations, unsupported coding, missing authorization, inactive eligibility, an expired appeal window, and unavailable required records lead to review.
 - **Sourced outputs:** Every extracted value must match its receipt, every cited fact must verify, and notes retain all observations. Reviewer approval atomically saves the run and a synthetic handoff. No claim is actually submitted, no payer is contacted, and no real patient data is present.
+
+The synthetic tools return structured `fields` alongside their source text. After a tool call, OpenAI calls `record_findings` with `fieldKeys`, restricted to keys present in that result. The application copies exact values, source IDs, and quotes from the receipt. The agent does not retype those strings. Missing, duplicate, or absent fields fail before any findings are committed; the existing claim, value, and source-text checks still run. This follows the [OpenAI function-calling guidance](https://developers.openai.com/api/docs/guides/function-calling) on constrained parameters and letting application code supply already-known data. This contract applies to structured tool output; extracting facts from an unstructured payer transcript would need its own extraction and evaluation stage.
+
+The recording schema requires as many field references as the tool returned. The note schema likewise requires as many IDs as there are verified facts, restricts those IDs to the verified set, and restricts the action to the already-drafted action. Separate facts with the same value retain their distinct source references. Application checks still reject duplicates, missing evidence, and altered actions before a note can be accepted.
+
+If an older build stops after a successful routing decision with **“Extracted fact does not match its authoritative tool receipt”**, the failure is in recording the agent's findings, not the routing-confidence check. That build asked the agent to copy values and citations verbatim. Update the project files on that machine and run `make rebuild`, then start a new investigation. The full investigation record also offers **Retry investigation** for failed runs. New source-check errors identify the field and mismatch type. Rebuilding retains the PostgreSQL data volume.
 
 The **Decision trail** shows the evidence available before each decision, the application rule, the router's proposal, the step actually applied, and the findings returned afterward. Conflicting values appear side by side with their original sources. A policy that permits only human review is distinguished from an override of the router's proposed step, such as a confidence gate. These explanations summarize saved inputs and gate results; they are not provider-written rationales. Earlier checkpoints never borrow facts from later steps. Scores and raw records remain available under technical details; fixture scores are explicitly labeled as scripted. Source verification confirms that a finding matches its recorded source, not that one conflicting source is correct.
 

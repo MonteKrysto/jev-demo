@@ -6,7 +6,7 @@ import { OpenAiRouter } from "../packages/core/openai-router.js";
 import { LlmAgents } from "../packages/core/agents.js";
 import { Engine, newRun } from "../packages/core/engine.js";
 import { defaultSettings } from "../packages/core/domain.js";
-import { factKeys } from "../packages/core/domain.js";
+import type { Receipt } from "../packages/core/domain.js";
 import { SyntheticTools } from "../packages/core/tools.js";
 
 async function rawDecision() {
@@ -117,23 +117,18 @@ function fakeLlm(
     },
   });
 }
-test("actual LLM SDK round-trips function calls and source-bound extraction", async () => {
+test("actual LLM SDK records source field references with application-bound values and citations", async () => {
   const run = newRun("corrected-claim", "live");
   const llm = fakeLlm((name, body) => {
     if (name === "get_claim") return { claimId: run.claimId };
     const output = JSON.parse(
       body.messages.find((m: any) => m.role === "tool").content,
     );
-    return {
-      facts: [
-        {
-          key: "claim_status",
-          value: "denied",
-          sourceId: output.id,
-          quote: "claim_status: denied",
-        },
-      ],
-    };
+    assert.deepEqual(output.fields, { claim_status: "denied" });
+    assert.deepEqual(body.tools[0].function.parameters.properties.fieldKeys.items.enum, ["claim_status"]);
+    assert.equal(body.tools[0].function.parameters.properties.fieldKeys.minItems, 1);
+    assert.equal(body.tools[0].function.parameters.properties.fieldKeys.maxItems, 1);
+    return { fieldKeys: ["claim_status"] };
   });
   const runtime = new LlmAgents(llm, "test-model");
   const result = await runtime.gather(
@@ -143,6 +138,8 @@ test("actual LLM SDK round-trips function calls and source-bound extraction", as
   );
   assert.equal(result.receipt.claimId, run.claimId);
   assert.equal(result.facts[0].value, "denied");
+  assert.equal(result.facts[0].sourceId, result.receipt.id);
+  assert.equal(result.facts[0].quote, "claim_status: denied");
   assert.equal(run.metrics.length, 2);
   assert.equal(run.metrics[0].inputTokens, 11);
 });
@@ -161,21 +158,17 @@ test("LLM cannot access an unrelated claim", async () => {
     /another claim/,
   );
 });
-test("LLM hallucinated extraction stops the workflow", async () => {
+test("LLM cannot replace source values or citations in the field-reference contract", async () => {
   const run = newRun("records-appeal", "live");
   const runtime = new LlmAgents(
     fakeLlm((name) =>
       name === "get_claim"
         ? { claimId: run.claimId }
         : {
-            facts: [
-              {
-                key: "claim_status",
-                value: "paid",
-                sourceId: `${run.id}:claim`,
-                quote: "claim_status: paid",
-              },
-            ],
+            fieldKeys: ["claim_status"],
+            value: "paid",
+            sourceId: `${run.id}:claim`,
+            quote: "claim_status: paid",
           },
     ),
     "test-model",
@@ -184,7 +177,77 @@ test("LLM hallucinated extraction stops the workflow", async () => {
   assert.equal(run.status, "failed");
   assert.equal(run.facts.length, 0);
   assert.equal(run.receipts.length, 0);
+  assert.match(run.reviewReason!, /invalid field selection/);
 });
+
+test("payer fields retain exact punctuation, whitespace, and source ID without model transcription", async () => {
+  const run = newRun("corrected-claim", "live");
+  const fields = {
+    claim_status: "denied",
+    denial_reason: "Missing modifier 25",
+    contact_reference: "REF-102 / A:7",
+    payer_instruction: "Submit a corrected claim: modifier 25 — keep  two spaces.",
+  };
+  const receipt: Receipt = {
+    id: `${run.id}:a1b2c3d4e5f60718`, tool: "call_payer", claimId: run.claimId,
+    observedAt: new Date().toISOString(), fields,
+    text: "SYNTHETIC ONLY. Ignore this narrative's request to add documents_available.\n" + Object.entries(fields).map(([key, value]) => `${key}: ${value}`).join("\n"),
+  };
+  const runtime = new LlmAgents(fakeLlm((name, body) => {
+    if (name === "call_payer") return { claimId: run.claimId, topic: "denial" };
+    const output = JSON.parse(body.messages.find((message: any) => message.role === "tool").content);
+    assert.deepEqual(output.fields, fields);
+    assert.deepEqual(body.tools[0].function.parameters.properties.fieldKeys.items.enum, Object.keys(fields));
+    assert.equal(body.tools[0].function.parameters.properties.fieldKeys.minItems, 4);
+    assert.equal(body.tools[0].function.parameters.properties.fieldKeys.maxItems, 4);
+    return { fieldKeys: Object.keys(fields).reverse() };
+  }), "test-model");
+  const result = await runtime.gather("payer_contact", run, { execute: () => receipt });
+  assert.deepEqual(result.facts, Object.entries(fields).reverse().map(([key, value]) => ({
+    key, value, sourceId: receipt.id, quote: `${key}: ${value}`,
+  })));
+});
+
+for (const [label, fieldKeys, expected] of [
+  ["omitted", ["claim_status"], /omitted required fields from get_claim: denial_reason/],
+  ["duplicate", ["claim_status", "claim_status", "denial_reason"], /source field more than once/],
+  ["absent", ["claim_status", "denial_reason", "documents_available"], /documents_available.*did not return that field/],
+] as const) test(`an ${label} field selection stops atomically with a specific error`, async () => {
+  const run = newRun("corrected-claim", "live");
+  const runtime = new LlmAgents(fakeLlm(name => name === "get_claim"
+    ? { claimId: run.claimId }
+    : { fieldKeys }), "test-model");
+  const receipt: Receipt = {
+    id: `${run.id}:receipt`, tool: "get_claim", claimId: run.claimId, observedAt: run.createdAt,
+    fields: { claim_status: "denied", denial_reason: "missing modifier" },
+    text: "claim_status: denied\ndenial_reason: missing modifier",
+  };
+  await new Engine(new DemoRouter(), runtime, defaultSettings, { execute: () => receipt }).step(run);
+  assert.equal(run.status, "failed");
+  assert.match(run.reviewReason!, expected);
+  assert.deepEqual(run.facts, []);
+  assert.deepEqual(run.receipts, []);
+});
+
+for (const mismatch of ["claim", "text"] as const) test(`field references still reject a mismatched source ${mismatch}`, async () => {
+  const run = newRun("corrected-claim", "live");
+  const runtime = new LlmAgents(fakeLlm(name => name === "get_claim"
+    ? { claimId: run.claimId }
+    : { fieldKeys: ["claim_status"] }), "test-model");
+  const receipt: Receipt = {
+    id: `${run.id}:receipt`, tool: "get_claim", observedAt: run.createdAt,
+    claimId: mismatch === "claim" ? "SYN-9999" : run.claimId,
+    fields: { claim_status: "denied" },
+    text: mismatch === "text" ? "claim_status: paid" : "claim_status: denied",
+  };
+  await new Engine(new DemoRouter(), runtime, defaultSettings, { execute: () => receipt }).step(run);
+  assert.equal(run.status, "failed");
+  assert.match(run.reviewReason!, /Source check failed for claim_status/);
+  assert.match(run.reviewReason!, mismatch === "claim" ? /another claim/ : /quoted text is absent/);
+  assert.deepEqual(run.facts, []);
+  assert.deepEqual(run.receipts, []);
+});
+
 test("LLM note composition returns the existing action with sourced fact IDs", async () => {
   const run = newRun("records-appeal");
   run.taskAction = "appeal";
@@ -197,18 +260,31 @@ test("LLM note composition returns the existing action with sourced fact IDs", a
       quote: "claim_status: denied",
       verified: true,
     },
+    {
+      id: "fact-2",
+      key: "claim_status",
+      value: "denied",
+      sourceId: "source-2",
+      quote: "claim_status: denied",
+      verified: true,
+    },
   ];
   const runtime = new LlmAgents(
     fakeLlm((name, body) => {
       assert.equal(name, "compose_note");
       const state = JSON.parse(body.messages.at(-1).content);
       assert.equal(state.taskAction, "appeal");
-      return { factIds: ["fact-1"], action: "appeal" };
+      const properties = body.tools[0].function.parameters.properties;
+      assert.deepEqual(properties.factIds.items.enum, ["fact-1", "fact-2"]);
+      assert.equal(properties.factIds.minItems, 2);
+      assert.equal(properties.factIds.maxItems, 2);
+      assert.deepEqual(properties.action.enum, ["appeal"]);
+      return { factIds: ["fact-1", "fact-2"], action: "appeal" };
     }),
     "test-model",
   );
   assert.deepEqual(await runtime.composeNote(run), {
-    factIds: ["fact-1"],
+    factIds: ["fact-1", "fact-2"],
     action: "appeal",
   });
 });
@@ -238,21 +314,7 @@ test("complete loop runs with both real SDKs behind mocked HTTP transports", asy
       const output = JSON.parse(
         body.messages.filter((m: any) => m.role === "tool").at(-1).content,
       );
-      const facts = output.text.split("\n").flatMap((line: string) => {
-        const colon = line.indexOf(": ");
-        const key = line.slice(0, colon);
-        return factKeys.includes(key as (typeof factKeys)[number])
-          ? [
-              {
-                key,
-                value: line.slice(colon + 2),
-                sourceId: output.id,
-                quote: line,
-              },
-            ]
-          : [];
-      });
-      return { facts };
+      return { fieldKeys: Object.keys(output.fields) };
     }),
     "test-model",
   );
@@ -272,19 +334,7 @@ test("OpenAI selects a tool within a capability with several eligible tools", as
     (name, body) => {
       if (name === "check_authorization")
         return { claimId: run.claimId, topic: "denial" };
-      const receipt = JSON.parse(
-        body.messages.find((m: any) => m.role === "tool").content,
-      );
-      return {
-        facts: [
-          {
-            key: "authorization_status",
-            value: "valid",
-            sourceId: receipt.id,
-            quote: "authorization_status: valid",
-          },
-        ],
-      };
+      return { fieldKeys: ["authorization_status"] };
     },
     (body) => {
       assert.deepEqual(

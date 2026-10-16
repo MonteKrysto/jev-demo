@@ -54,6 +54,7 @@ test("three-mode comparison queues the selected modes, shows different outcomes,
   await page.goto("/");
   await page.getByRole("link", { name: "Compare all three modes" }).click();
   await expect(page.getByRole("heading", { name: "One case. Three approaches." })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Demo", exact: true })).toHaveAttribute("aria-current", "page");
   expect(mock.creates).toHaveLength(0);
   expect(mock.starts).toHaveLength(0);
   await page.getByRole("button", { name: "Run all three", exact: true }).click();

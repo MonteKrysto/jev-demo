@@ -8,7 +8,9 @@ test("focused demo rehearses one claim, reveals evidence, and ends with two outp
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Can JEV guide an investigation/ })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Main navigation" })).toHaveCount(0);
+  const navigation = page.getByRole("navigation", { name: "Main navigation" });
+  await expect(navigation).toBeVisible();
+  await expect(navigation.getByRole("link", { name: "Demo", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("button", { name: "Run to completion", exact: true })).toBeInViewport();
   await expect(page.getByRole("link", { name: "Advanced workspace" })).toBeVisible();
   await expect(page.getByText("528", { exact: true })).toHaveCount(0);
@@ -17,6 +19,7 @@ test("focused demo rehearses one claim, reveals evidence, and ends with two outp
   await page.getByRole("button", { name: "Step through manually" }).click();
   await expect(page).toHaveURL(/\/demo\/[a-f0-9-]+$/);
   const runUrl = page.url();
+  await expect(navigation.getByRole("link", { name: "Demo", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.getByText("No steps taken yet", { exact: true })).toBeVisible();
   const metrics = page.getByRole("region", { name: "Run metrics", exact: true });
   await expect(metrics.locator("dl > div").filter({ has: page.getByText("Model calls", { exact: true }) }).locator("dd")).toHaveText("0");
@@ -62,6 +65,9 @@ test("focused demo rehearses one claim, reveals evidence, and ends with two outp
   await page.getByRole("link", { name: "Inspect the full record" }).click();
   await expect(page).toHaveURL(runUrl.replace("/demo/", "/investigations/") + "?tab=trace");
   await expect(page.getByRole("tab", { name: /^Decision trail/ })).toBeVisible();
+  await expect(navigation.getByRole("link", { name: /^Investigations/ })).toHaveAttribute("aria-current", "page");
+  await navigation.getByRole("link", { name: "Demo", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /Can JEV guide an investigation/ })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

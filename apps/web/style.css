@@ -2604,7 +2604,6 @@ tbody tr:hover {
   --demo-agent-fill: #eff6ff;
   --demo-agent-border: #abccee;
 }
-.demo-shell .skip-link { left: 24px; }
 .demo-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 22px 48px; border-bottom: 1px solid var(--border); background: #fff; }
 .demo-brand { display: flex; align-items: center; gap: 12px; }
 .demo-brand > svg { color: var(--green); }
@@ -2612,7 +2611,7 @@ tbody tr:hover {
 .demo-brand > span { font-size: 12px; color: #5a6c61; padding-left: 12px; border-left: 1px solid var(--border); }
 .demo-advanced-link { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #5a6c61; }
 .demo-advanced-link:hover, .demo-run-footer a:hover, .demo-home-footer a:hover { color: var(--green); text-decoration: underline; }
-.demo-page { max-width: 1200px; padding: 48px 40px; margin: 0 auto; }
+.demo-page { width: 100%; max-width: 1200px; padding: 48px 40px; margin: 0 auto; }
 .demo-home { max-width: 1080px; margin: 12px auto; }
 .demo-home > h1 { font-size: 42px; line-height: 1.25; letter-spacing: -1.4px; margin: 14px 0 18px; }
 .demo-intro { font-size: 18px; color: #53695b; margin-bottom: 36px; }

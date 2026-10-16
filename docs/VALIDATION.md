@@ -1,5 +1,17 @@
 # Backend validation — 2026-10-11
 
+## Structured source recording — 2026-10-16
+
+A reported second-machine failure showed JEV allowing payer contact at 99% confidence, followed by the application's generic receipt-mismatch error. The screenshot does not identify the rejected field, and this workspace cannot inspect the other machine's original provider response. Inspection found that the previous agent contract required OpenAI to retype values, source IDs, and verbatim quotes from tool text even though each synthetic tool already returned structured fields.
+
+`record_findings` now accepts only `fieldKeys`, with its allowed keys and required item count taken from the current receipt. The tool result supplies both structured fields and source text. Application code binds selected keys to exact values, source IDs, and quotes; all original evidence checks remain in place. Duplicate, missing, and absent fields are rejected atomically. Source-check errors identify the field and mismatch type. JEV routing, the 70% threshold, and seeded data are unchanged.
+
+An initial live check, `395ac67c-f905-4ce5-a792-fa8786426101`, passed payer recording and verification but exposed a separate note omission. The note schema was then constrained to the complete count of verified fact IDs, the allowed ID set, and the existing action. Its instructions now distinguish identical values from distinct source citations. Duplicate and missing citation checks remain enforced by the application.
+
+TypeScript, the production build, and **79 automated tests** passed. Provider tests use the real SDK over mocked HTTP, including exact punctuation/whitespace/source binding, malicious extra properties, absent/duplicate/omitted field references, cross-claim receipts, source-text mismatches, multi-source note cardinality, and the complete tool loop. A new live investigation, `988b18b5-4d83-41c7-bbf8-5ef7dd15d4a7`, completed all five steps with `correct_claim`, five source-checked facts, and a completion note containing every verified fact reference. The final live export is `.data/field-reference-live-validation-final.json`. These checks confirm this case's integration; they do not reproduce the exact unavailable second-machine model response or establish corpus-wide accuracy.
+
+Docker bootstrap uses `npm ci` and the committed package-lock input; host `node_modules` is excluded and not bind-mounted. Host `pnpm install` is therefore unnecessary for the Docker path. The updated backend files must be copied to another installation before rebuilding or relying on development source reload. Saved runs and the PostgreSQL volume remain intact.
+
 ## Step 3 routing and handoff explanations — 2026-10-15
 
 The saved live investigation `4e58b88e-7052-4578-aaeb-d265bfad664c` stopped because its routing confidence was 0.69 against the saved 0.70 threshold. JEV proposed verification (0.72 probability), followed by billing investigation (0.19); human review received 0.01. Its separate corrected-claim prediction had 0.97 confidence. The application gate, rather than the proposed next step, caused the handoff.
