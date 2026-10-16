@@ -1,0 +1,376 @@
+{
+  "generatedAt": "2026-10-11T09:27:16.261Z",
+  "mode": "demo",
+  "fixtureOnly": true,
+  "liveProviderValidated": false,
+  "scenarios": 7,
+  "matched": 7,
+  "description": "Fixture plumbing evaluation. Does not measure JEV accuracy, calibration or latency.",
+  "approvedWrites": 0,
+  "results": [
+    {
+      "scenarioId": "records-appeal",
+      "runId": "43674bec-c20e-4b87-9b4c-64f0cecc5c0b",
+      "expected": "appeal",
+      "actual": "appeal",
+      "status": "awaiting_review",
+      "matched": true,
+      "verifiedFacts": 8,
+      "totalFacts": 8,
+      "steps": 6,
+      "payerCalls": 1,
+      "observations": 3,
+      "elapsedMs": 67,
+      "metrics": [
+        {
+          "ms": 1,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "provider": "jev",
+          "model": "fixture-router (not JEV)",
+          "ms": 0,
+          "inputTokens": 0,
+          "outputTokens": 0
+        }
+      ],
+      "error": null
+    },
+    {
+      "scenarioId": "corrected-claim",
+      "runId": "60de7ecc-2484-4320-b3e4-9446e30a13dd",
+      "expected": "correct_claim",
+      "actual": "correct_claim",
+      "status": "awaiting_review",
+      "matched": true,
+      "verifiedFacts": 5,
+      "totalFacts": 5,
+      "steps": 5,
+      "payerCalls": 1,
+      "observations": 2,
+      "elapsedMs": 36,
+      "metrics": [
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "provider": "jev",
+          "model": "fixture-router (not JEV)",
+          "ms": 0,
+          "inputTokens": 0,
+          "outputTokens": 0
+        }
+      ],
+      "error": null
+    },
+    {
+      "scenarioId": "processing",
+      "runId": "80fd1f83-011b-468d-acfa-95bc42224a3f",
+      "expected": "follow_up",
+      "actual": "follow_up",
+      "status": "awaiting_review",
+      "matched": true,
+      "verifiedFacts": 4,
+      "totalFacts": 4,
+      "steps": 5,
+      "payerCalls": 1,
+      "observations": 2,
+      "elapsedMs": 24,
+      "metrics": [
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "provider": "jev",
+          "model": "fixture-router (not JEV)",
+          "ms": 0,
+          "inputTokens": 0,
+          "outputTokens": 0
+        }
+      ],
+      "error": null
+    },
+    {
+      "scenarioId": "second-contact",
+      "runId": "6596297a-f561-488f-a8c0-9a9e6c0b3571",
+      "expected": "appeal",
+      "actual": "appeal",
+      "status": "awaiting_review",
+      "matched": true,
+      "verifiedFacts": 10,
+      "totalFacts": 10,
+      "steps": 7,
+      "payerCalls": 2,
+      "observations": 4,
+      "elapsedMs": 36,
+      "metrics": [
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "provider": "jev",
+          "model": "fixture-router (not JEV)",
+          "ms": 0,
+          "inputTokens": 0,
+          "outputTokens": 0
+        }
+      ],
+      "error": null
+    },
+    {
+      "scenarioId": "contradiction",
+      "runId": "83a27689-a760-42c1-ae44-86335d0786d2",
+      "expected": "human_review",
+      "actual": "human_review",
+      "status": "needs_human",
+      "matched": true,
+      "verifiedFacts": 6,
+      "totalFacts": 6,
+      "steps": 4,
+      "payerCalls": 1,
+      "observations": 2,
+      "elapsedMs": 25,
+      "metrics": [
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "provider": "jev",
+          "model": "fixture-router (not JEV)",
+          "ms": 0,
+          "inputTokens": 0,
+          "outputTokens": 0
+        }
+      ],
+      "error": null
+    },
+    {
+      "scenarioId": "ambiguous",
+      "runId": "1a326345-f758-4699-b5ef-cb3ca974859e",
+      "expected": "human_review",
+      "actual": "human_review",
+      "status": "needs_human",
+      "matched": true,
+      "verifiedFacts": 5,
+      "totalFacts": 5,
+      "steps": 3,
+      "payerCalls": 1,
+      "observations": 2,
+      "elapsedMs": 17,
+      "metrics": [
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "provider": "jev",
+          "model": "fixture-router (not JEV)",
+          "ms": 0,
+          "inputTokens": 0,
+          "outputTokens": 0
+        }
+      ],
+      "error": null
+    },
+    {
+      "scenarioId": "records-unavailable",
+      "runId": "55c64c46-23be-406b-ae2c-f989119e154a",
+      "expected": "human_review",
+      "actual": "human_review",
+      "status": "needs_human",
+      "matched": true,
+      "verifiedFacts": 8,
+      "totalFacts": 8,
+      "steps": 5,
+      "payerCalls": 1,
+      "observations": 3,
+      "elapsedMs": 22,
+      "metrics": [
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "ms": 0,
+          "model": "fixture-router (not JEV)",
+          "provider": "jev",
+          "inputTokens": 0,
+          "outputTokens": 0
+        },
+        {
+          "provider": "jev",
+          "model": "fixture-router (not JEV)",
+          "ms": 0,
+          "inputTokens": 0,
+          "outputTokens": 0
+        }
+      ],
+      "error": null
+    }
+  ]
+}

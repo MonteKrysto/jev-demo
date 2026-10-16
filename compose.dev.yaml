@@ -1,0 +1,33 @@
+# Source mounts leave the image's Linux dependencies and writable caches intact.
+# The existing PostgreSQL volume is shared with the production configuration.
+x-development: &development
+  image: jev-rcm-poc:dev
+  build:
+    context: .
+    target: development
+  init: true
+  volumes:
+    - ./apps:/app/apps:ro
+    - ./packages:/app/packages:ro
+    - ./db:/app/db:ro
+    - ./scripts:/app/scripts:ro
+    - ./vite.config.ts:/app/vite.config.ts:ro
+    - ./tsconfig.json:/app/tsconfig.json:ro
+
+services:
+  init:
+    <<: *development
+  app:
+    <<: *development
+    command: ["npm", "run", "dev"]
+    environment:
+      NODE_ENV: development
+      # Vite keeps the public port and proxies API requests inside this container.
+      PORT: 3002
+      DEV_WEB_PORT: 3001
+      DEV_API_TARGET: http://127.0.0.1:3002
+  worker:
+    <<: *development
+    command: ["npm", "run", "dev:worker"]
+    environment:
+      NODE_ENV: development

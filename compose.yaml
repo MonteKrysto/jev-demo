@@ -1,0 +1,67 @@
+x-runtime: &runtime
+  image: jev-rcm-poc:local
+  build: .
+  environment: &environment
+    DATABASE_URL: postgres://poc:poc@postgres:5432/jev_rcm
+    HOST: 0.0.0.0
+    PUBLIC_ORIGIN: http://localhost:${APP_PORT:-3001}
+    TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+    TYPESAFE_MODEL: ${TYPESAFE_MODEL:-jev-latest}
+    TYPESAFE_BASE_URL: ${TYPESAFE_BASE_URL:-https://api.typesafe.ai}
+    OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
+    LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+    CONFIDENCE_THRESHOLD: ${CONFIDENCE_THRESHOLD:-0.7}
+    MAX_STEPS: ${MAX_STEPS:-12}
+    MAX_PAYER_CALLS: ${MAX_PAYER_CALLS:-2}
+  stop_grace_period: 120s
+
+services:
+  init:
+    <<: *runtime
+    command: ["npm", "run", "db:seed"]
+    depends_on:
+      postgres: { condition: service_healthy }
+  app:
+    <<: *runtime
+    ports: ["127.0.0.1:${APP_PORT:-3001}:3001"]
+    restart: unless-stopped
+    depends_on:
+      init: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  worker:
+    <<: *runtime
+    command: ["npm", "run", "worker"]
+    restart: unless-stopped
+    depends_on:
+      init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "npm", "run", "worker:health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: poc
+      POSTGRES_PASSWORD: poc
+      POSTGRES_DB: jev_rcm
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poc -d jev_rcm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  postgres_data:

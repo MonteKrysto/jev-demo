@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-10-11T14:40:27.397Z",
+  "corpusVersion": 2,
+  "modes": [
+    "demo"
+  ],
+  "scope": "all",
+  "split": "all",
+  "fixtureOnly": true,
+  "approvedWrites": 0,
+  "description": "Synthetic engineering evaluation. Variants share authored families; splits keep every family together. Accuracy is against fixture labels, not clinical validation. Unrequested reads are a proxy for tool inefficiency. The OpenAI baseline supplies no confidence distribution.",
+  "summary": {
+    "demo": {
+      "cases": 528,
+      "matched": 528,
+      "accuracy": 1,
+      "groundingFailures": 0,
+      "providerFailures": 0,
+      "escalations": 327,
+      "unnecessaryEscalations": 0,
+      "unrequestedReads": 0,
+      "tokens": 0,
+      "elapsedMs": 18681
+    }
+  },
+  "consistency": {
+    "demo": {
+      "sameExpectedPairs": 416,
+      "consistent": 416
+    }
+  }
+}
