@@ -53,7 +53,7 @@ export function sequenceEntries(events: AuditEvent[]): SequenceEntry[] {
       }
     } else if (event.kind === "agent" && typeof data?.verifiedFacts === "number") {
       entries.push({ id: event.id, role: "application", title: `Checked ${data.verifiedFacts} facts against their sources`,
-        detail: data.conflicts?.length ? data.conflicts.join("; ") : "The recorded facts matched their sources. No conflicts were found.",
+        detail: data.conflicts?.length ? `${data.conflicts.join("; ")}. Verification does not resolve which source is correct.` : "The recorded facts matched their sources. No conflicts were found.",
         warning: Boolean(data.conflicts?.length) });
     } else if (event.kind === "agent" && data?.taskAction) {
       entries.push({ id: event.id, role: "application", title: "Task Action recorded", detail: actionLabel(data.taskAction) });

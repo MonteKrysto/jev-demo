@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { Engine, newRun } from "../../packages/core/engine";
 import { DemoRouter } from "../../packages/core/jev";
 import { FixtureAgents } from "../../packages/core/agents";
+import { event } from "../../packages/core/domain";
 
 test("evaluation preview, durable pause/resume, results, and read-only trial inspection", async ({ page }) => {
   test.setTimeout(45_000);
@@ -250,6 +251,56 @@ test("human-review case preserves conflicting findings and saves a review handof
   await expect(page.getByText("Handoff saved by Local reviewer")).toBeVisible();
 });
 
+for (const mode of ["live", "openai"] as const) test(`${mode} investigation shows routing and agent work together in the saved order`, async ({ page }) => {
+  // Render saved provider runs with fixture responses; no model APIs are called.
+  const run = newRun("corrected-claim", mode);
+  const engine = new Engine(new DemoRouter(), new FixtureAgents());
+  while (run.status === "ready") await engine.step(run);
+  await page.route(`**/api/runs/${run.id}`, route => route.fulfill({ json: run }));
+  await page.goto(`/investigations/${run.id}`);
+  const decisionLabel = mode === "live" ? "JEV decision" : "OpenAI routing";
+  const first = page.getByRole("article", { name: "Checkpoint 1: Look up the claim" });
+  await expect(first.getByRole("region", { name: decisionLabel, exact: true })).toBeVisible();
+  const work = first.getByRole("list", { name: "Work after this decision" });
+  await expect(work.getByText("OpenAI agent", { exact: true })).toBeVisible();
+  await expect(work.getByRole("heading", { name: "Claim record returned findings" })).toBeVisible();
+  await expect(work.locator("code")).toHaveText("get_claim");
+  await expect(work.getByText("denied", { exact: true })).toBeVisible();
+  await expect(first.locator(".checkpoint-content > *")).toHaveCount(2);
+  const payer = page.getByRole("article", { name: "Checkpoint 2: Contact the payer" });
+  await expect(payer.getByRole("region", { name: decisionLabel, exact: true })).toBeVisible();
+  await expect(payer.getByRole("list", { name: "Work after this decision" }).getByText("missing modifier", { exact: true })).toBeVisible();
+  const verify = page.getByRole("article", { name: "Checkpoint 3: Verify the evidence" });
+  await expect(verify.getByRole("heading", { name: "Checked 5 facts against their sources" })).toBeVisible();
+  await expect(verify.locator(".demo-sequence-agent")).toHaveCount(0);
+  const note = page.getByRole("article", { name: "Checkpoint 5: Prepare the completion note" });
+  await expect(note.getByRole("list", { name: "Work after this decision" }).getByRole("heading")).toHaveText([
+    "Organized verified facts for the note", "Completion note prepared",
+  ]);
+  await first.screenshot({ path: `test-results/${mode}-decision-and-agent-desktop.png` });
+});
+
+test("investigation preserves an attempted tool call before a source-recording failure", async ({ page }) => {
+  const run = newRun("corrected-claim", "live");
+  const engine = new Engine(new DemoRouter(), {
+    async gather(_capability, state) {
+      event(state, "tool", "LLM called get_claim", { tool: "get_claim", sourceId: "unaccepted" });
+      throw new Error("Source check failed for claim_status");
+    },
+    async composeNote() { throw new Error("Unexpected note call"); },
+  });
+  await engine.step(run);
+  await page.route(`**/api/runs/${run.id}`, route => route.fulfill({ json: run }));
+  await page.goto(`/investigations/${run.id}`);
+  const first = page.getByRole("article", { name: "Checkpoint 1: Look up the claim" });
+  await expect(first.getByRole("list", { name: "Work after this decision" }).getByRole("heading")).toHaveText([
+    "Called get_claim", "Source check failed for claim_status",
+  ]);
+  await expect(first.getByText("No accepted findings were recorded for this call.")).toBeVisible();
+  await expect(first.locator(".demo-sequence-agent").getByText("OpenAI agent", { exact: true })).toBeVisible();
+  await expect(first.locator(".demo-sequence-application").getByText("Application", { exact: true })).toBeVisible();
+});
+
 test("decision trail distinguishes a live confidence override from a discovered conflict", async ({ page }) => {
   const run = newRun("contradiction", "live");
   const router = new DemoRouter();
@@ -272,6 +323,8 @@ test("decision trail distinguishes a live confidence override from a discovered 
   await expect(review.locator(".decision-applied").getByText("Check coverage and authorization", { exact: true })).toBeVisible();
   await expect(review.getByText("THE SOURCES DISAGREE", { exact: true })).toHaveCount(0);
   await expect(review.getByText("duplicate claim", { exact: true })).toHaveCount(0);
+  await expect(review.locator(".demo-sequence-agent")).toHaveCount(0);
+  await expect(review.getByRole("heading", { name: "Handed off for human review" })).toBeVisible();
   await review.screenshot({ path: "test-results/confidence-override-desktop.png" });
 });
 

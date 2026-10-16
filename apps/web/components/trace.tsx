@@ -1,8 +1,8 @@
-import { ArrowRight, Check, ChevronDown, AlertTriangle, ShieldCheck } from "lucide-react";
-import type { Agent, AuditEvent, Receipt, Run } from "../../../packages/core/domain";
-import { actionLabel } from "../../../packages/core/evidence";
+import { ArrowRight, ChevronDown, AlertTriangle, GitBranch, ShieldCheck, Wrench } from "lucide-react";
+import type { Agent, AuditEvent, Run } from "../../../packages/core/domain";
 import { agentNames, dateTime, factNames } from "../lib/format";
 import { explainDecision, groupCheckpoints, sourceNames, type DecisionData } from "../lib/decision-explanation";
+import { sequenceEntries } from "../lib/demo-sequence";
 import { EmptyState } from "./ui";
 import { ConfidenceCheck } from "./decision-context";
 
@@ -29,34 +29,29 @@ function InputFacts({ facts, observations }: {
   </div>;
 }
 
-function CheckpointOutcome({ events }: { events: AuditEvent[] }) {
-  const observations = events.filter(e => e.kind === "tool" && (e.data as Partial<Receipt> | undefined)?.fields);
-  const results = events.filter(e => ["agent", "policy", "error", "approval"].includes(e.kind));
-  if (!observations.length && !results.length) return null;
-  return <div className="checkpoint-outcome">
-    <span className="field-label">WHAT HAPPENED NEXT</span>
-    {observations.map(event => {
-      const receipt = event.data as Receipt;
-      return <div className="outcome-observation" key={event.id}>
-        <strong>{sourceNames[receipt.tool] ?? receipt.tool} returned</strong>
-        <dl>{Object.entries(receipt.fields).map(([key, value]) => <div key={key}>
-          <dt>{factNames[key] ?? key}</dt><dd>{value}</dd>
-        </div>)}</dl>
-      </div>;
+function CheckpointOutcome({ events, run }: { events: AuditEvent[]; run: Run }) {
+  const entries = sequenceEntries(events);
+  const agent = run.mode === "demo" || run.mode === "jev" ? "Scripted agent" : "OpenAI agent";
+  if (!entries.length) return <p className="checkpoint-pending">No work has been recorded after this decision yet.</p>;
+  return <ol className="checkpoint-outcome demo-sequence-entries" aria-label="Work after this decision">
+    {entries.map(entry => {
+      const Icon = entry.role === "agent" ? Wrench : ShieldCheck;
+      return <li key={entry.id} className={`demo-sequence-entry demo-sequence-${entry.role}${entry.warning ? " demo-sequence-warning" : ""}`}>
+        <span className="demo-sequence-icon"><Icon size={15} aria-hidden="true" /></span>
+        <div className="demo-sequence-content">
+          <span className="demo-sequence-role">{entry.role === "agent" ? agent : "Application"}</span>
+          <h3>{entry.title}</h3>
+          {entry.detail && <p>{entry.detail}</p>}
+          {entry.receipt && <>
+            <p>Called <code>{entry.receipt.tool}</code> and recorded these findings:</p>
+            <dl>{Object.entries(entry.receipt.fields).map(([key, value]) => <div key={key}>
+              <dt>{factNames[key] ?? key}</dt><dd>{value}</dd>
+            </div>)}</dl>
+          </>}
+        </div>
+      </li>;
     })}
-    {results.map(event => {
-      const result = event.data as { taskAction?: Run["taskAction"]; verifiedFacts?: number; conflicts?: string[]; reason?: string } | undefined;
-      if (event.kind === "agent" && observations.length) return null;
-      return <p className={`checkpoint-result result-${event.kind}`} key={event.id}>
-        {event.kind === "error" || result?.conflicts?.length ? <AlertTriangle size={15} /> : <Check size={15} />}
-        <span>{result?.verifiedFacts !== undefined
-          ? `${result.verifiedFacts} facts matched their sources. ${result.conflicts?.length ? `${result.conflicts.length} conflict${result.conflicts.length === 1 ? "" : "s"} recorded: ${result.conflicts.join("; ")}. Verification does not resolve which source is correct.` : "No conflicts were detected in the collected evidence."}`
-          : result?.taskAction ? `Task Action drafted: ${actionLabel(result.taskAction)}.`
-          : event.kind === "policy" && result?.reason ? `Human review required: ${result.reason}.`
-          : event.title}</span>
-      </p>;
-    })}
-  </div>;
+  </ol>;
 }
 
 function Checkpoint({ event, following, index, run }: { event: AuditEvent; following: AuditEvent[]; index: number; run: Run }) {
@@ -65,15 +60,17 @@ function Checkpoint({ event, following, index, run }: { event: AuditEvent; follo
   const { selected, allowed, changed, conflicts, state } = info;
   const isReview = data.appliedAgent === "human_review";
   const router = run.mode === "demo" ? "Fixture router" : run.mode === "openai" ? "OpenAI" : "JEV";
+  const decisionLabel = run.mode === "demo" ? "Fixture decision (scripted)" : run.mode === "openai" ? "OpenAI routing" : "JEV decision";
   const visibleFacts = conflicts.length ? conflicts.flatMap(c => c.facts) : info.evidence.slice(0, 2);
   const additional = info.evidence.filter(f => !visibleFacts.includes(f));
   return <article className={`checkpoint ${isReview ? "checkpoint-review" : ""}`} id={`checkpoint-${event.id}`} aria-label={`Checkpoint ${index + 1}: ${agentNames[data.appliedAgent]}`}>
     <div className="checkpoint-rail"><span>{String(index + 1).padStart(2, "0")}</span></div>
     <div className="checkpoint-content">
+      <section className="checkpoint-decision" aria-label={decisionLabel}>
       <div className="checkpoint-title">
         <div>
-          <span className="eyebrow">{router.toUpperCase()} · CHECKPOINT {index + 1}</span>
-          <h3>{agentNames[data.appliedAgent] ?? event.title}</h3>
+          <span className="eyebrow"><GitBranch size={15} aria-hidden="true" />{decisionLabel} · CHECKPOINT {index + 1}</span>
+          <h3>{agentNames[selected.choice] ?? event.title}</h3>
         </div>
         <span className={`decision-kind ${isReview || conflicts.length ? "decision-attention" : ""}`}>
           {isReview || conflicts.length ? <AlertTriangle size={14} /> : <ShieldCheck size={14} />}{info.title}
@@ -101,7 +98,6 @@ function Checkpoint({ event, following, index, run }: { event: AuditEvent; follo
         <ArrowRight size={20} aria-hidden="true" />
         <div><span>{changed ? "Application redirected to" : "Application allowed"}</span><strong>{agentNames[data.appliedAgent]}</strong></div>
       </div>
-      <CheckpointOutcome events={following} />
       <details className="decision-details">
         <summary>{run.mode === "demo" ? "Scripted scores & technical details" : "Router scores & technical details"}<ChevronDown size={14} /></summary>
         <div className="detail-section">
@@ -122,6 +118,8 @@ function Checkpoint({ event, following, index, run }: { event: AuditEvent; follo
           {following.length > 0 && <details className="raw-details"><summary>Tool and execution records</summary><pre>{JSON.stringify(following, null, 2)}</pre></details>}
         </div>
       </details>
+      </section>
+      <CheckpointOutcome events={following} run={run} />
     </div>
   </article>;
 }
@@ -131,8 +129,13 @@ export function DecisionTrace({ run }: { run: Run }) {
   if (!run.events.length) return <EmptyState title="The investigation starts here">Advance one checkpoint or run the case to begin gathering evidence.</EmptyState>;
   return <div className="decision-timeline">
     {checkpoints.length > 0 && <div className="trace-guide">
-      <strong>Follow the evidence to the decision</strong>
-      <p>Each checkpoint shows the evidence available then, the application rule, and the step that actually ran. Explanations summarize the saved record; the router does not return a written rationale.</p>
+      <strong>Follow each decision and the work it triggered</strong>
+      <p>Each checkpoint pairs the routing decision with the agent’s tool calls and findings, followed by any application checks or handoff. Some steps only run an application check; a blocked decision does not trigger agent work. Explanations summarize the saved record; the router does not return a written rationale.</p>
+      <div className="demo-role-legend" aria-label="Role color key">
+        <span className="demo-role-decision"><GitBranch size={15} aria-hidden="true" />{run.mode === "demo" ? "Fixture decision (scripted)" : run.mode === "openai" ? "OpenAI routing" : "JEV decision"}</span>
+        <span className="demo-role-agent"><Wrench size={15} aria-hidden="true" />{run.mode === "demo" || run.mode === "jev" ? "Scripted agent" : "OpenAI agent"} & tools</span>
+        <span className="demo-role-application"><ShieldCheck size={15} aria-hidden="true" />Application checks & handoff</span>
+      </div>
       <nav aria-label="Investigation checkpoints"><ol>{checkpoints.map(({ event }, index) => {
         const data = event.data as DecisionData;
         return <li key={event.id}><a className={data.appliedAgent === "human_review" ? "review-stop" : ""} href={`#checkpoint-${event.id}`}><span>{index + 1}</span>{agentNames[data.appliedAgent]}</a></li>;
