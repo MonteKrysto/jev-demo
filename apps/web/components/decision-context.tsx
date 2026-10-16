@@ -6,6 +6,38 @@ import { agentNames, factNames } from "../lib/format";
 const percent = (value: number | undefined) => value === undefined ? "Not recorded"
   : `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value * 100)}%`;
 
+function ConfidenceCalculation({ data, mode }: { data: DecisionData; mode: Mode }) {
+  const answer = data.response.answers.next_agent;
+  const probabilities = Object.values(answer.probabilities ?? {});
+  if (probabilities.length < 2 || answer.confidence === undefined || data.response.confidenceKind === "not_provided") return null;
+  // Count every option in the saved response, not just today's eligible options.
+  const count = probabilities.length;
+  const leading = Math.max(...probabilities);
+  const evenSplit = 1 / count;
+  const calculated = (leading - evenSplit) / (1 - evenSplit);
+  const allowed = data.request?.state?.execution?.eligibleAgents;
+  const hasBlockedChoices = allowed !== undefined && Object.keys(answer.probabilities!).some(option =>
+    !allowed.includes(option as typeof answer.choice));
+  return <section className="routing-calculation" aria-label="How routing confidence is calculated">
+    <strong className="routing-context-label">How {percent(leading)} becomes {percent(answer.confidence)}</strong>
+    <ol>
+      <li><strong>Start with an equal share.</strong><p>There were {count} choices. If none were favored, each would get the same share:</p>
+        <p className="routing-calculation-math">100% ÷ {count} choices ≈ <strong>{percent(evenSplit)} each</strong></p>
+        <p>That is an “even split.”</p>
+      </li>
+      <li><strong>Adjust the leading score.</strong><p>The leading choice received {percent(leading)}. The formula treats an even split as 0% confidence and all the probability on one choice as 100% confidence.</p>
+        <p className="routing-calculation-math"><span>({percent(leading)} − {percent(evenSplit)})</span><span>÷</span><span>(100% − {percent(evenSplit)})</span><strong>≈ {percent(calculated)}</strong></p>
+      </li>
+      <li><strong>Use the reported confidence.</strong><p>{mode === "demo" ? "The fixture assigned" : "JEV returned"} <strong>{percent(answer.confidence)}</strong>.{data.settings
+        ? <> The application compared that score with the <strong>{percent(data.settings.confidenceThreshold)} required</strong> to continue.</>
+        : " The threshold for this step was not saved."}</p>
+      </li>
+    </ol>
+    <p className="routing-calculation-note">Numbers in the calculation are rounded for readability.{hasBlockedChoices && <> All {count} choices count, including those marked “Not permitted.”</>}</p>
+    <p className="routing-calculation-note">This score describes how strongly one choice is favored; it does not tell us how often the decision will be correct.</p>
+  </section>;
+}
+
 export function DecisionContext({ data, mode, expanded = false }: { data: DecisionData; mode: Mode; expanded?: boolean }) {
   const info = explainDecision(data);
   const { selected, state, choices } = info;
@@ -31,11 +63,10 @@ export function DecisionContext({ data, mode, expanded = false }: { data: Decisi
       {choices.length ? <>
         {distribution(primary)}
         {remaining.length > 0 && <details className="routing-other-options"><summary>All other choices ({remaining.length})</summary>{distribution(remaining)}</details>}
-        <p className="routing-score-note">{mode === "demo"
-          ? "These are scripted fixture scores, not measured confidence."
-          : "Option probability and routing confidence are different: confidence adjusts the leading probability for the number of choices. Neither measures accuracy."}</p>
+        {mode === "demo" && <p className="routing-score-note">These are scripted fixture scores, not measured confidence.</p>}
       </> : <p>This router did not supply probabilities or confidence.</p>}
       {selected.confidence !== undefined && <p><strong>Routing confidence: {percent(selected.confidence)}</strong>{data.settings && ` · Required: ${percent(data.settings.confidenceThreshold)}`}</p>}
+      <ConfidenceCalculation data={data} mode={mode} />
       {info.changed && selected.choice !== "human_review" && <p className="routing-attribution">The router proposed {agentNames[selected.choice].toLowerCase()}. The application chose the handoff.</p>}
       <strong className="routing-context-label">What was known then</strong>
       <p>{state?.verification?.complete === false ? "Source verification was pending." : state?.verification?.complete === true ? "Source verification was complete." : "Verification status was not recorded."}</p>

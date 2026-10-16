@@ -225,6 +225,12 @@ test("stopped verification explains the evidence, competing choices, and applica
   await expect(rows.nth(2)).toContainText("Request human review1%");
   await expect(context.getByText(/The application chose the handoff/)).toBeVisible();
   await expect(context.getByText(/Prepare corrected claim · 97% confidence/)).toBeVisible();
+  const calculation = context.getByRole("region", { name: "How routing confidence is calculated" });
+  await expect(calculation.getByText("How 72% becomes 69%", { exact: true })).toBeVisible();
+  await expect(calculation.getByText(/100% ÷ 12 choices ≈ 8.33% each/)).toBeVisible();
+  await expect(calculation.getByText("≈ 69.45%", { exact: true })).toBeVisible();
+  await expect(calculation.getByText(/JEV returned 69%.*70% required/)).toBeVisible();
+  await expect(calculation.getByText(/All 12 choices count, including those marked “Not permitted.”/)).toBeVisible();
   const gate = current.getByLabel("Routing confidence check");
   await expect(gate.getByText("69%", { exact: true })).toBeVisible();
   await expect(gate.getByText("70%", { exact: true })).toBeVisible();
